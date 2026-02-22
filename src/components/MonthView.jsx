@@ -10,7 +10,7 @@ import { fr } from 'date-fns/locale';
 import DayCell from './DayCell';
 import './MonthView.css';
 
-const MonthView = ({ year, month, events, leaves, placedActivities, activities, holidayDates = [], onDayClick, onRemoveActivity, onUpdateActivity }) => {
+const MonthView = ({ year, month, events, leaves, placedActivities, activities, holidayDates = [], onDayClick }) => {
     const date = new Date(year, month, 1);
     const monthName = format(date, 'MMMM', { locale: fr });
     const daysInMonth = getDaysInMonth(date);
@@ -70,8 +70,6 @@ const MonthView = ({ year, month, events, leaves, placedActivities, activities, 
                             isHoliday={isHoliday}
                             isToday={isSameDay(day, new Date())}
                             onClick={() => onDayClick(day)}
-                            onRemoveActivity={(activityId) => onRemoveActivity(dateString, activityId)}
-                            onUpdateActivity={(activityId, details) => onUpdateActivity(dateString, activityId, details)}
                         />
                     );
                 })}

@@ -3,6 +3,7 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plane, Edit2, Pane
 import YearView from './components/YearView';
 import EventModal from './components/EventModal';
 import ActivityModal from './components/ActivityModal';
+import DaySidebar from './components/DaySidebar';
 import { getEvents, saveEvents, getLeaves, saveLeaves, getSettings, saveSettings, getActivities, saveActivities, getPlacedActivities, savePlacedActivities } from './utils/storage';
 import { fetchAllData, pushData } from './utils/api';
 import { getZoneADates } from './utils/holidaysZoneA';
@@ -26,6 +27,8 @@ function App() {
   const [isEditingTotal, setIsEditingTotal] = useState(false);
   const [tempTotalLeaves, setTempTotalLeaves] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [rightSidebarDate, setRightSidebarDate] = useState(null);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
 
   useEffect(() => {
     const loadedEvents = getEvents();
@@ -103,8 +106,14 @@ function App() {
       setPlacedActivities(updatedPlaced);
       savePlacedActivities(updatedPlaced);
     } else {
-      setSelectedDate(date);
-      setIsModalOpen(true);
+      const dayPlacements = placedActivities[dateString] || [];
+      if (dayPlacements.length > 0) {
+        setRightSidebarDate(dateString);
+        setRightSidebarOpen(true);
+      } else {
+        setSelectedDate(date);
+        setIsModalOpen(true);
+      }
     }
   };
 
@@ -372,10 +381,18 @@ function App() {
             activities={activities}
             holidayDates={holidayDates}
             onDayClick={handleDayClick}
-            onRemoveActivity={handleRemovePlacedActivity}
-            onUpdateActivity={handleUpdatePlacedActivity}
           />
         </main>
+
+        <DaySidebar
+          isOpen={rightSidebarOpen}
+          dateString={rightSidebarDate}
+          placedActivities={placedActivities}
+          activities={activities}
+          onClose={() => setRightSidebarOpen(false)}
+          onRemoveActivity={handleRemovePlacedActivity}
+          onUpdateActivity={handleUpdatePlacedActivity}
+        />
       </div>
 
       {isModalOpen && selectedDate && (
