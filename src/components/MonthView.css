@@ -1,0 +1,94 @@
+.month-card {
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+    animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Add a slight stagger to month cards based on nth-child */
+.year-container>.month-card:nth-child(1) {
+    animation-delay: 50ms;
+}
+
+.year-container>.month-card:nth-child(2) {
+    animation-delay: 100ms;
+}
+
+.year-container>.month-card:nth-child(3) {
+    animation-delay: 150ms;
+}
+
+.year-container>.month-card:nth-child(4) {
+    animation-delay: 200ms;
+}
+
+.year-container>.month-card:nth-child(5) {
+    animation-delay: 250ms;
+}
+
+.year-container>.month-card:nth-child(6) {
+    animation-delay: 300ms;
+}
+
+.year-container>.month-card:nth-child(7) {
+    animation-delay: 350ms;
+}
+
+.year-container>.month-card:nth-child(8) {
+    animation-delay: 400ms;
+}
+
+.year-container>.month-card:nth-child(9) {
+    animation-delay: 450ms;
+}
+
+.year-container>.month-card:nth-child(10) {
+    animation-delay: 500ms;
+}
+
+.year-container>.month-card:nth-child(11) {
+    animation-delay: 550ms;
+}
+
+.year-container>.month-card:nth-child(12) {
+    animation-delay: 600ms;
+}
+
+.month-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    z-index: 10;
+}
+
+.month-header {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.month-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+}
+
+.month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--space-1);
+}
+
+.weekday-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    padding: var(--space-1) 0;
+    margin-bottom: var(--space-2);
+}
+
+.day-blank {
+    aspect-ratio: 1;
+}

@@ -1,0 +1,31 @@
+.year-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-6);
+    width: 100%;
+}
+
+@media (min-width: 1400px) {
+    .year-container {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 1024px) and (max-width: 1399px) {
+    .year-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+    .year-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 639px) {
+    .year-container {
+        grid-template-columns: 1fr;
+        gap: var(--space-4);
+    }
+}

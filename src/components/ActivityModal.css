@@ -1,0 +1,131 @@
+.activity-modal {
+    max-width: 400px;
+}
+
+.activities-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-height: 250px;
+    overflow-y: auto;
+    margin-bottom: var(--space-4);
+    padding-right: var(--space-2);
+}
+
+.activity-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3);
+    background: var(--bg-surface-active);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+}
+
+.activity-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.activity-color-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-surface);
+    box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+.activity-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.activity-list-item.is-hidden {
+    opacity: 0.6;
+    background: var(--bg-surface);
+}
+
+.activity-list-item.is-hidden .activity-name {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.activity-actions {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text-secondary);
+}
+
+.action-btn:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+
+.delete-btn:hover {
+    color: var(--danger-base);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.toggle-hide-btn:hover {
+    color: var(--primary-base);
+    background: rgba(251, 146, 60, 0.1);
+}
+
+.empty-state-text {
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: var(--space-4) 0;
+}
+
+.divider {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: var(--space-4) 0;
+}
+
+.form-subtitle {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: var(--space-3);
+}
+
+.color-picker {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    margin-top: var(--space-2);
+}
+
+.color-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.color-btn:hover {
+    transform: scale(1.1);
+}
+
+.color-btn.selected {
+    box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--primary-base);
+    transform: scale(1.1);
+}
