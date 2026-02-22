@@ -1,3 +1,5 @@
+import { pushData } from './api.js';
+
 const STORAGE_KEY = 'vite_agenda_events';
 const LEAVES_STORAGE_KEY = 'vite_agenda_leaves';
 const SETTINGS_STORAGE_KEY = 'vite_agenda_settings';
@@ -13,9 +15,10 @@ export const getEvents = () => {
     }
 };
 
-export const saveEvents = (events) => {
+export const saveEvents = (events, skipApi = false) => {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+        if (!skipApi) pushData('events', events);
     } catch (error) {
         console.error('Failed to save events to storage:', error);
     }
@@ -33,9 +36,10 @@ export const getLeaves = () => {
     }
 };
 
-export const saveLeaves = (leaves) => {
+export const saveLeaves = (leaves, skipApi = false) => {
     try {
         localStorage.setItem(LEAVES_STORAGE_KEY, JSON.stringify(leaves));
+        if (!skipApi) pushData('leaves', leaves);
     } catch (error) {
         console.error('Failed to save leaves to storage:', error);
     }
@@ -52,9 +56,10 @@ export const getSettings = () => {
     }
 };
 
-export const saveSettings = (settings) => {
+export const saveSettings = (settings, skipApi = false) => {
     try {
         localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+        if (!skipApi) pushData('settings', settings);
     } catch (error) {
         console.error('Failed to save settings to storage:', error);
     }
@@ -77,9 +82,10 @@ export const getActivities = () => {
     }
 };
 
-export const saveActivities = (activities) => {
+export const saveActivities = (activities, skipApi = false) => {
     try {
         localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(activities));
+        if (!skipApi) pushData('activities', activities);
     } catch (error) {
         console.error('Failed to save activities:', error);
     }
@@ -113,9 +119,10 @@ export const getPlacedActivities = () => {
     }
 };
 
-export const savePlacedActivities = (placedActivities) => {
+export const savePlacedActivities = (placedActivities, skipApi = false) => {
     try {
         localStorage.setItem(PLACED_ACTIVITIES_STORAGE_KEY, JSON.stringify(placedActivities));
+        if (!skipApi) pushData('placed_activities', placedActivities);
     } catch (error) {
         console.error('Failed to save placed activities:', error);
     }

@@ -4,6 +4,7 @@ import YearView from './components/YearView';
 import EventModal from './components/EventModal';
 import ActivityModal from './components/ActivityModal';
 import { getEvents, saveEvents, getLeaves, saveLeaves, getSettings, saveSettings, getActivities, saveActivities, getPlacedActivities, savePlacedActivities } from './utils/storage';
+import { fetchAllData, pushData } from './utils/api';
 import { getZoneADates } from './utils/holidaysZoneA';
 import './App.css';
 
@@ -45,6 +46,29 @@ function App() {
     setSettings(loadedSettings);
     setActivities(loadedActivities);
     setPlacedActivities(loadedPlacedActivities);
+
+    // Background sync from API
+    fetchAllData().then(data => {
+      if (!data) return; // API unavailable, keep localStorage data
+
+      const hasApiData = Object.keys(data).length > 0;
+
+      if (hasApiData) {
+        // API has data — overwrite local with server truth
+        if (data.events !== undefined) { setEvents(data.events); saveEvents(data.events, true); }
+        if (data.leaves !== undefined) { setLeaves(data.leaves); saveLeaves(data.leaves, true); }
+        if (data.settings !== undefined) { setSettings(data.settings); saveSettings(data.settings, true); }
+        if (data.activities !== undefined) { setActivities(data.activities); saveActivities(data.activities, true); }
+        if (data.placed_activities !== undefined) { setPlacedActivities(data.placed_activities); savePlacedActivities(data.placed_activities, true); }
+      } else {
+        // API is empty — seed it with current localStorage data
+        pushData('events', loadedEvents);
+        pushData('leaves', loadedLeaves);
+        pushData('settings', loadedSettings);
+        pushData('activities', loadedActivities);
+        pushData('placed_activities', loadedPlacedActivities);
+      }
+    });
   }, []);
 
   const handlePrevYear = () => setCurrentYear(prev => prev - 1);
