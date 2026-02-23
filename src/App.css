@@ -589,12 +589,15 @@
     min-width: 60px;
   }
 
+  .app-body {
+    position: relative;
+  }
+
   .sidebar {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
-    height: 100vh;
-    height: 100dvh;
+    bottom: 0;
     z-index: 200;
     box-shadow: var(--shadow-lg);
   }
