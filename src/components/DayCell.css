@@ -149,3 +149,37 @@
 .day-cell.is-leave.type-afternoon.is-today {
     background: linear-gradient(135deg, transparent 50%, rgba(16, 185, 129, 0.25) 50%);
 }
+
+@media (max-width: 639px) {
+    .day-cell {
+        font-size: 0.75rem;
+        border-radius: 3px;
+        min-height: 28px;
+    }
+
+    .day-cell:hover {
+        transform: none;
+    }
+
+    .day-cell:active {
+        transform: scale(0.92);
+        background: var(--bg-surface-active);
+    }
+
+    .activity-bar {
+        height: 3px;
+    }
+
+    .event-dot {
+        width: 3px;
+        height: 3px;
+    }
+
+    .has-activities .event-dot {
+        bottom: 5px;
+    }
+
+    .day-cell.is-holiday::before {
+        height: 3px;
+    }
+}

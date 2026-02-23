@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plane, Edit2, PanelLeftClose, PanelLeftOpen, Plus, Settings, EyeOff, Eye } from 'lucide-react';
 import YearView from './components/YearView';
 import EventModal from './components/EventModal';
@@ -26,7 +26,7 @@ function App() {
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [isEditingTotal, setIsEditingTotal] = useState(false);
   const [tempTotalLeaves, setTempTotalLeaves] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768);
   const [rightSidebarDate, setRightSidebarDate] = useState(null);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
 
@@ -72,6 +72,10 @@ function App() {
         pushData('placed_activities', loadedPlacedActivities);
       }
     });
+  }, []);
+
+  const closeSidebarOnMobile = useCallback(() => {
+    if (window.innerWidth <= 768) setSidebarOpen(false);
   }, []);
 
   const handlePrevYear = () => setCurrentYear(prev => prev - 1);
@@ -262,6 +266,7 @@ function App() {
       </header>
 
       <div className="app-body">
+        {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
         <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
           <div className="sidebar-content">
             {/* Activities section */}
@@ -281,7 +286,7 @@ function App() {
                   <div key={activity.id} className={`sidebar-activity-row ${activity.isHidden ? 'hidden-activity' : ''}`}>
                     <button
                       className={`sidebar-activity-btn ${activeActivityId === activity.id ? 'active' : ''} ${leaveMode || activity.isHidden ? 'disabled' : ''}`}
-                      onClick={() => { if (!leaveMode && !activity.isHidden) setActiveActivityId(activeActivityId === activity.id ? null : activity.id); }}
+                      onClick={() => { if (!leaveMode && !activity.isHidden) { setActiveActivityId(activeActivityId === activity.id ? null : activity.id); closeSidebarOnMobile(); } }}
                       style={activity.isHidden
                         ? { borderColor: `${activity.color}30`, color: `${activity.color}60` }
                         : activeActivityId === activity.id
@@ -323,6 +328,7 @@ function App() {
                 onClick={() => {
                   setLeaveMode(!leaveMode);
                   setActiveActivityId(null);
+                  closeSidebarOnMobile();
                 }}
               >
                 <Plane size={16} />
@@ -394,6 +400,7 @@ function App() {
           />
         </main>
 
+        {rightSidebarOpen && <div className="sidebar-backdrop" onClick={() => setRightSidebarOpen(false)} />}
         <DaySidebar
           isOpen={rightSidebarOpen}
           dateString={rightSidebarDate}

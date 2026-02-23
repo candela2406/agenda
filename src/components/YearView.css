@@ -25,7 +25,14 @@
 
 @media (max-width: 639px) {
     .year-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-2);
+    }
+}
+
+@media (max-width: 380px) {
+    .year-container {
         grid-template-columns: 1fr;
-        gap: var(--space-4);
+        gap: var(--space-2);
     }
 }
