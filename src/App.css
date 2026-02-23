@@ -168,6 +168,16 @@
   gap: var(--space-1);
 }
 
+.sidebar-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sidebar-activity-row.hidden-activity .sidebar-activity-btn {
+  opacity: 0.5;
+}
+
 .sidebar-activity-btn {
   display: flex;
   align-items: center;
@@ -180,7 +190,8 @@
   background: transparent;
   transition: all var(--transition-fast);
   text-align: left;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .sidebar-activity-btn:hover:not(.disabled) {
@@ -193,8 +204,34 @@
 }
 
 .sidebar-activity-btn.disabled {
-  opacity: 0.4;
   cursor: not-allowed;
+}
+
+.sidebar-activity-toggle-visibility {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.sidebar-activity-row:hover .sidebar-activity-toggle-visibility {
+  opacity: 1;
+}
+
+.sidebar-activity-row.hidden-activity .sidebar-activity-toggle-visibility {
+  opacity: 0.6;
+}
+
+.sidebar-activity-toggle-visibility:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+  opacity: 1;
 }
 
 .sidebar-activity-dot {

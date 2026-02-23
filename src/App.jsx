@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plane, Edit2, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plane, Edit2, PanelLeftClose, PanelLeftOpen, Plus, Settings, EyeOff, Eye } from 'lucide-react';
 import YearView from './components/YearView';
 import EventModal from './components/EventModal';
 import ActivityModal from './components/ActivityModal';
@@ -277,19 +277,29 @@ function App() {
                 </button>
               </div>
               <div className="sidebar-activities">
-                {activities.filter(a => !a.isHidden).map(activity => (
-                  <button
-                    key={activity.id}
-                    className={`sidebar-activity-btn ${activeActivityId === activity.id ? 'active' : ''} ${leaveMode ? 'disabled' : ''}`}
-                    onClick={() => { if (!leaveMode) setActiveActivityId(activeActivityId === activity.id ? null : activity.id); }}
-                    style={activeActivityId === activity.id
-                      ? { backgroundColor: activity.color, borderColor: activity.color, color: '#fff' }
-                      : { borderColor: `${activity.color}60`, color: activity.color }
-                    }
-                  >
-                    <span className="sidebar-activity-dot" style={{ backgroundColor: activeActivityId === activity.id ? '#fff' : activity.color }} />
-                    <span className="sidebar-activity-name">{activity.name}</span>
-                  </button>
+                {activities.map(activity => (
+                  <div key={activity.id} className={`sidebar-activity-row ${activity.isHidden ? 'hidden-activity' : ''}`}>
+                    <button
+                      className={`sidebar-activity-btn ${activeActivityId === activity.id ? 'active' : ''} ${leaveMode || activity.isHidden ? 'disabled' : ''}`}
+                      onClick={() => { if (!leaveMode && !activity.isHidden) setActiveActivityId(activeActivityId === activity.id ? null : activity.id); }}
+                      style={activity.isHidden
+                        ? { borderColor: `${activity.color}30`, color: `${activity.color}60` }
+                        : activeActivityId === activity.id
+                          ? { backgroundColor: activity.color, borderColor: activity.color, color: '#fff' }
+                          : { borderColor: `${activity.color}60`, color: activity.color }
+                      }
+                    >
+                      <span className="sidebar-activity-dot" style={{ backgroundColor: activity.isHidden ? `${activity.color}40` : activeActivityId === activity.id ? '#fff' : activity.color }} />
+                      <span className="sidebar-activity-name">{activity.name}</span>
+                    </button>
+                    <button
+                      className="sidebar-activity-toggle-visibility"
+                      onClick={() => handleToggleHideActivity(activity.id)}
+                      title={activity.isHidden ? `Afficher ${activity.name}` : `Masquer ${activity.name}`}
+                    >
+                      {activity.isHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+                  </div>
                 ))}
                 <button
                   className="sidebar-add-btn"
