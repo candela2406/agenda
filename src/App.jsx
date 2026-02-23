@@ -3,10 +3,43 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plane, Edit2, Pane
 import YearView from './components/YearView';
 import DaySidebar from './components/DaySidebar';
 import ActivityModal from './components/ActivityModal';
-import { getEvents, saveEvents, getLeaves, saveLeaves, getSettings, saveSettings, getActivities, saveActivities, getPlacedActivities, savePlacedActivities } from './utils/storage';
-import { fetchAllData, pushData } from './utils/api';
+import {
+  fetchInit,
+  createEvent, updateEvent as apiUpdateEvent, deleteEvent as apiDeleteEvent,
+  createActivity, updateActivity, deleteActivity as apiDeleteActivity,
+  createPlacedActivity, updatePlacedActivity, deletePlacedActivity,
+  upsertLeave, deleteLeave,
+  updateSettings,
+} from './utils/api';
 import { getZoneADates } from './utils/holidaysZoneA';
 import './App.css';
+
+// Transform API flat arrays into the dict shapes components expect
+function groupEventsByDate(events) {
+  const dict = {};
+  for (const ev of events) {
+    if (!dict[ev.date]) dict[ev.date] = [];
+    dict[ev.date].push(ev);
+  }
+  return dict;
+}
+
+function groupPlacedByDate(placedActivities) {
+  const dict = {};
+  for (const p of placedActivities) {
+    if (!dict[p.date]) dict[p.date] = [];
+    dict[p.date].push({ id: p.activityId, rowId: p.id, title: p.title, time: p.time, location: p.location, description: p.description });
+  }
+  return dict;
+}
+
+function groupLeavesByDate(leaves) {
+  const dict = {};
+  for (const l of leaves) {
+    dict[l.date] = l.type;
+  }
+  return dict;
+}
 
 function App() {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -15,6 +48,7 @@ function App() {
   const [settings, setSettings] = useState({ totalLeaves: 25 });
   const [leaveMode, setLeaveMode] = useState(false);
   const [leaveSelectionType, setLeaveSelectionType] = useState('full');
+  const [loading, setLoading] = useState(true);
 
   const [activities, setActivities] = useState([]);
   const [placedActivities, setPlacedActivities] = useState({});
@@ -27,49 +61,34 @@ function App() {
   const [rightSidebarDate, setRightSidebarDate] = useState(null);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    const loadedEvents = getEvents();
-    const loadedLeaves = getLeaves();
-    const loadedSettings = getSettings();
-    let loadedActivities = getActivities();
+  const loadYear = useCallback(async (year) => {
+    setLoading(true);
+    try {
+      const data = await fetchInit(year);
+      setEvents(groupEventsByDate(data.events));
+      setLeaves(groupLeavesByDate(data.leaves));
+      setSettings({ totalLeaves: parseInt(data.settings.totalLeaves) || 25 });
+      setPlacedActivities(groupPlacedByDate(data.placedActivities));
 
-    const ZONE_A_ID = 'system-vacances-zone-a';
-    if (!loadedActivities.find(a => a.id === ZONE_A_ID)) {
-      const zoneAActivity = { id: ZONE_A_ID, name: 'Vacances Zone A', color: '#ec4899', isHidden: false };
-      loadedActivities = [...loadedActivities, zoneAActivity];
-      saveActivities(loadedActivities);
-    }
-
-    const loadedPlacedActivities = getPlacedActivities();
-    setEvents(loadedEvents);
-    setLeaves(loadedLeaves);
-    setSettings(loadedSettings);
-    setActivities(loadedActivities);
-    setPlacedActivities(loadedPlacedActivities);
-
-    // Background sync from API
-    fetchAllData().then(data => {
-      if (!data) return; // API unavailable, keep localStorage data
-
-      const hasApiData = Object.keys(data).length > 0;
-
-      if (hasApiData) {
-        // API has data — overwrite local with server truth
-        if (data.events !== undefined) { setEvents(data.events); saveEvents(data.events, true); }
-        if (data.leaves !== undefined) { setLeaves(data.leaves); saveLeaves(data.leaves, true); }
-        if (data.settings !== undefined) { setSettings(data.settings); saveSettings(data.settings, true); }
-        if (data.activities !== undefined) { setActivities(data.activities); saveActivities(data.activities, true); }
-        if (data.placed_activities !== undefined) { setPlacedActivities(data.placed_activities); savePlacedActivities(data.placed_activities, true); }
-      } else {
-        // API is empty — seed it with current localStorage data
-        pushData('events', loadedEvents);
-        pushData('leaves', loadedLeaves);
-        pushData('settings', loadedSettings);
-        pushData('activities', loadedActivities);
-        pushData('placed_activities', loadedPlacedActivities);
+      // Ensure system Zone A activity exists
+      const ZONE_A_ID = 'system-vacances-zone-a';
+      let loadedActivities = data.activities;
+      if (!loadedActivities.find(a => a.id === ZONE_A_ID)) {
+        const zoneA = { id: ZONE_A_ID, name: 'Vacances Zone A', color: '#ec4899', isHidden: false };
+        await createActivity(zoneA);
+        loadedActivities = [...loadedActivities, zoneA];
       }
-    });
+      setActivities(loadedActivities);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadYear(currentYear);
+  }, [currentYear, loadYear]);
 
   const closeSidebarOnMobile = useCallback(() => {
     if (window.innerWidth <= 768) setSidebarOpen(false);
@@ -78,69 +97,81 @@ function App() {
   const handlePrevYear = () => setCurrentYear(prev => prev - 1);
   const handleNextYear = () => setCurrentYear(prev => prev + 1);
 
-  const handleDayClick = (date) => {
+  const handleDayClick = async (date) => {
     const dateString = date.toISOString().split('T')[0];
 
     if (leaveMode) {
-      const updatedLeaves = { ...leaves };
-      if (updatedLeaves[dateString] === leaveSelectionType || (updatedLeaves[dateString] === true && leaveSelectionType === 'full')) {
-        delete updatedLeaves[dateString];
+      const current = leaves[dateString];
+      if (current === leaveSelectionType) {
+        await deleteLeave(dateString);
+        setLeaves(prev => {
+          const updated = { ...prev };
+          delete updated[dateString];
+          return updated;
+        });
       } else {
-        updatedLeaves[dateString] = leaveSelectionType;
+        await upsertLeave(dateString, leaveSelectionType);
+        setLeaves(prev => ({ ...prev, [dateString]: leaveSelectionType }));
       }
-      setLeaves(updatedLeaves);
-      saveLeaves(updatedLeaves);
     } else if (activeActivityId) {
-      const updatedPlaced = { ...placedActivities };
-      const current = updatedPlaced[dateString] || [];
-      const exists = current.some(item => item.id === activeActivityId);
-      if (exists) {
-        const filtered = current.filter(item => item.id !== activeActivityId);
-        if (filtered.length === 0) {
-          delete updatedPlaced[dateString];
-        } else {
-          updatedPlaced[dateString] = filtered;
-        }
+      const current = placedActivities[dateString] || [];
+      const existing = current.find(item => item.id === activeActivityId);
+      if (existing) {
+        await deletePlacedActivity(existing.rowId);
+        setPlacedActivities(prev => {
+          const updated = { ...prev };
+          const filtered = (updated[dateString] || []).filter(item => item.id !== activeActivityId);
+          if (filtered.length === 0) {
+            delete updated[dateString];
+          } else {
+            updated[dateString] = filtered;
+          }
+          return updated;
+        });
       } else {
-        updatedPlaced[dateString] = [...current, { id: activeActivityId }];
+        const result = await createPlacedActivity({ date: dateString, activityId: activeActivityId });
+        setPlacedActivities(prev => {
+          const updated = { ...prev };
+          const items = updated[dateString] || [];
+          updated[dateString] = [...items, { id: result.activityId, rowId: result.id, title: result.title, time: result.time, location: result.location, description: result.description }];
+          return updated;
+        });
       }
-      setPlacedActivities(updatedPlaced);
-      savePlacedActivities(updatedPlaced);
     } else {
       setRightSidebarDate(dateString);
       setRightSidebarOpen(true);
     }
   };
 
-  const handleAddEvent = (dateString, eventData) => {
-    const updatedEvents = { ...events };
-    if (!updatedEvents[dateString]) {
-      updatedEvents[dateString] = [];
-    }
-    updatedEvents[dateString].push({ id: Date.now().toString(), ...eventData });
-    setEvents(updatedEvents);
-    saveEvents(updatedEvents);
+  const handleAddEvent = async (dateString, eventData) => {
+    const result = await createEvent({ date: dateString, ...eventData });
+    setEvents(prev => {
+      const updated = { ...prev };
+      if (!updated[dateString]) updated[dateString] = [];
+      updated[dateString] = [...updated[dateString], result];
+      return updated;
+    });
   };
 
-  const handleUpdateEvent = (dateString, eventId, eventData) => {
-    if (!events[dateString]) return;
-    const updatedEvents = { ...events };
-    updatedEvents[dateString] = updatedEvents[dateString].map(ev =>
-      ev.id === eventId ? { ...ev, ...eventData } : ev
-    );
-    setEvents(updatedEvents);
-    saveEvents(updatedEvents);
+  const handleUpdateEvent = async (dateString, eventId, eventData) => {
+    const result = await apiUpdateEvent(eventId, eventData);
+    setEvents(prev => {
+      const updated = { ...prev };
+      updated[dateString] = (updated[dateString] || []).map(ev =>
+        ev.id === eventId ? result : ev
+      );
+      return updated;
+    });
   };
 
-  const handleDeleteEvent = (dateString, eventId) => {
-    if (!events[dateString]) return;
-    const updatedEvents = { ...events };
-    updatedEvents[dateString] = updatedEvents[dateString].filter(ev => ev.id !== eventId);
-    if (updatedEvents[dateString].length === 0) {
-      delete updatedEvents[dateString];
-    }
-    setEvents(updatedEvents);
-    saveEvents(updatedEvents);
+  const handleDeleteEvent = async (dateString, eventId) => {
+    await apiDeleteEvent(eventId);
+    setEvents(prev => {
+      const updated = { ...prev };
+      updated[dateString] = (updated[dateString] || []).filter(ev => ev.id !== eventId);
+      if (updated[dateString].length === 0) delete updated[dateString];
+      return updated;
+    });
   };
 
   const handleStartEditTotal = () => {
@@ -148,12 +179,12 @@ function App() {
     setIsEditingTotal(true);
   };
 
-  const handleSaveTotalLeaves = () => {
+  const handleSaveTotalLeaves = async () => {
     const newTotal = parseInt(tempTotalLeaves, 10);
     if (!isNaN(newTotal) && newTotal > 0) {
       const newSettings = { ...settings, totalLeaves: newTotal };
       setSettings(newSettings);
-      saveSettings(newSettings);
+      await updateSettings({ totalLeaves: newTotal });
     }
     setIsEditingTotal(false);
   };
@@ -163,65 +194,104 @@ function App() {
     else if (e.key === 'Escape') setIsEditingTotal(false);
   };
 
-  const handleAddActivity = (activityData) => {
-    const newActivities = [...activities, { id: Date.now().toString(), ...activityData }];
-    setActivities(newActivities);
-    saveActivities(newActivities);
+  const handleAddActivity = async (activityData) => {
+    const result = await createActivity(activityData);
+    setActivities(prev => [...prev, result]);
   };
 
-  const handleToggleHideActivity = (activityId) => {
-    const newActivities = activities.map(a =>
-      a.id === activityId ? { ...a, isHidden: !a.isHidden } : a
-    );
-    setActivities(newActivities);
-    saveActivities(newActivities);
-    const toggledActivity = newActivities.find(a => a.id === activityId);
-    if (toggledActivity?.isHidden && activeActivityId === activityId) {
+  const handleUpdateActivityDef = async (activityId, data) => {
+    const activity = activities.find(a => a.id === activityId);
+    if (!activity) return;
+    const updated = { ...activity, ...data };
+    await updateActivity(activityId, updated);
+    setActivities(prev => prev.map(a => a.id === activityId ? updated : a));
+  };
+
+  const handleToggleHideActivity = async (activityId) => {
+    const activity = activities.find(a => a.id === activityId);
+    if (!activity) return;
+    const updated = { ...activity, isHidden: !activity.isHidden };
+    await updateActivity(activityId, updated);
+    setActivities(prev => prev.map(a => a.id === activityId ? updated : a));
+    if (updated.isHidden && activeActivityId === activityId) {
       setActiveActivityId(null);
     }
   };
 
-  const handleDeleteActivity = (activityId) => {
-    const newActivities = activities.filter(a => a.id !== activityId);
-    setActivities(newActivities);
-    saveActivities(newActivities);
+  const handleDeleteActivity = async (activityId) => {
+    await apiDeleteActivity(activityId);
+    setActivities(prev => prev.filter(a => a.id !== activityId));
+    // Cascade: remove placed activities referencing this activity from local state
+    setPlacedActivities(prev => {
+      const updated = {};
+      for (const [date, items] of Object.entries(prev)) {
+        const filtered = items.filter(item => item.id !== activityId);
+        if (filtered.length > 0) updated[date] = filtered;
+      }
+      return updated;
+    });
     if (activeActivityId === activityId) {
       setActiveActivityId(null);
     }
   };
 
-  const handleRemovePlacedActivity = (dateString, activityId) => {
-    const updatedPlaced = { ...placedActivities };
-    const current = updatedPlaced[dateString] || [];
-    const filtered = current.filter(item => item.id !== activityId);
-    if (filtered.length === 0) {
-      delete updatedPlaced[dateString];
-    } else {
-      updatedPlaced[dateString] = filtered;
+  const handleRemovePlacedActivity = async (dateString, activityId) => {
+    const current = placedActivities[dateString] || [];
+    const item = current.find(i => i.id === activityId);
+    if (item) {
+      await deletePlacedActivity(item.rowId);
     }
-    setPlacedActivities(updatedPlaced);
-    savePlacedActivities(updatedPlaced);
+    setPlacedActivities(prev => {
+      const updated = { ...prev };
+      const filtered = (updated[dateString] || []).filter(i => i.id !== activityId);
+      if (filtered.length === 0) {
+        delete updated[dateString];
+      } else {
+        updated[dateString] = filtered;
+      }
+      return updated;
+    });
   };
 
-  const handleUpdatePlacedActivity = (dateString, activityId, details) => {
-    const updatedPlaced = { ...placedActivities };
-    const current = updatedPlaced[dateString] || [];
-    updatedPlaced[dateString] = current.map(item =>
-      item.id === activityId ? { ...item, ...details } : item
-    );
-    setPlacedActivities(updatedPlaced);
-    savePlacedActivities(updatedPlaced);
+  const handleUpdatePlacedActivity = async (dateString, activityId, details) => {
+    const current = placedActivities[dateString] || [];
+    const item = current.find(i => i.id === activityId);
+    if (item) {
+      await updatePlacedActivity(item.rowId, details);
+    }
+    setPlacedActivities(prev => {
+      const updated = { ...prev };
+      updated[dateString] = (updated[dateString] || []).map(i =>
+        i.id === activityId ? { ...i, ...details } : i
+      );
+      return updated;
+    });
   };
 
   const currentYearLeavesCount = Object.entries(leaves)
     .filter(([dateString]) => dateString.startsWith(currentYear.toString()))
     .reduce((total, [_, type]) => {
-      if (type === 'full' || type === true) return total + 1;
+      if (type === 'full') return total + 1;
       if (type === 'morning' || type === 'afternoon') return total + 0.5;
       return total;
     }, 0);
 
   const holidayDates = getZoneADates();
+
+  if (loading) {
+    return (
+      <div className="app-container">
+        <header className="app-header">
+          <div className="header-left">
+            <div className="app-title">
+              <CalendarIcon className="title-icon" size={28} strokeWidth={2.5} />
+              <h1>Mon Agenda</h1>
+            </div>
+          </div>
+        </header>
+      </div>
+    );
+  }
 
   return (
     <div className={`app-container ${leaveMode ? 'leave-mode-active' : ''}`}>
@@ -407,6 +477,7 @@ function App() {
           activities={activities}
           onClose={() => setIsActivityModalOpen(false)}
           onAddActivity={handleAddActivity}
+          onUpdateActivity={handleUpdateActivityDef}
           onToggleHideActivity={handleToggleHideActivity}
           onDeleteActivity={handleDeleteActivity}
         />

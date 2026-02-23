@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, Edit2, Check } from 'lucide-react';
 import './ActivityModal.css';
 
 const PREDEFINED_COLORS = [
@@ -12,13 +12,22 @@ const PREDEFINED_COLORS = [
     '#06b6d4', // cyan
 ];
 
-const ActivityModal = ({ activities, onClose, onAddActivity, onToggleHideActivity, onDeleteActivity }) => {
+const ActivityModal = ({ activities, onClose, onAddActivity, onUpdateActivity, onToggleHideActivity, onDeleteActivity }) => {
     const [newActivityName, setNewActivityName] = useState('');
     const [newActivityColor, setNewActivityColor] = useState(PREDEFINED_COLORS[0]);
+    const [editingId, setEditingId] = useState(null);
+    const [editName, setEditName] = useState('');
+    const [editColor, setEditColor] = useState('');
 
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (e.key === 'Escape') onClose();
+            if (e.key === 'Escape') {
+                if (editingId) {
+                    setEditingId(null);
+                } else {
+                    onClose();
+                }
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         document.body.style.overflow = 'hidden';
@@ -27,7 +36,7 @@ const ActivityModal = ({ activities, onClose, onAddActivity, onToggleHideActivit
             window.removeEventListener('keydown', handleKeyDown);
             document.body.style.overflow = 'unset';
         };
-    }, [onClose]);
+    }, [onClose, editingId]);
 
     const handleAdd = (e) => {
         e.preventDefault();
@@ -40,6 +49,23 @@ const ActivityModal = ({ activities, onClose, onAddActivity, onToggleHideActivit
         });
 
         setNewActivityName('');
+    };
+
+    const startEdit = (activity) => {
+        setEditingId(activity.id);
+        setEditName(activity.name);
+        setEditColor(activity.color);
+    };
+
+    const saveEdit = () => {
+        if (!editName.trim()) return;
+        onUpdateActivity(editingId, { name: editName.trim(), color: editColor });
+        setEditingId(null);
+    };
+
+    const handleEditKeyDown = (e) => {
+        if (e.key === 'Enter') saveEdit();
+        if (e.key === 'Escape') setEditingId(null);
     };
 
     return (
@@ -59,26 +85,67 @@ const ActivityModal = ({ activities, onClose, onAddActivity, onToggleHideActivit
                         ) : (
                             activities.map(activity => (
                                 <div key={activity.id} className={`activity-list-item ${activity.isHidden ? 'is-hidden' : ''}`}>
-                                    <div className="activity-info">
-                                        <div className="activity-color-swatch" style={{ backgroundColor: activity.color }}></div>
-                                        <span className="activity-name">{activity.name}</span>
-                                    </div>
-                                    <div className="activity-actions">
-                                        <button
-                                            className="action-btn toggle-hide-btn"
-                                            onClick={() => onToggleHideActivity(activity.id)}
-                                            title={activity.isHidden ? "Afficher l'activité" : "Masquer l'activité"}
-                                        >
-                                            {activity.isHidden ? <EyeOff size={16} /> : <Eye size={16} />}
-                                        </button>
-                                        <button
-                                            className="action-btn delete-btn"
-                                            onClick={() => onDeleteActivity(activity.id)}
-                                            title="Supprimer l'activité"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
+                                    {editingId === activity.id ? (
+                                        <div className="activity-edit-form">
+                                            <input
+                                                type="text"
+                                                className="form-input activity-edit-input"
+                                                value={editName}
+                                                onChange={(e) => setEditName(e.target.value)}
+                                                onKeyDown={handleEditKeyDown}
+                                                autoFocus
+                                            />
+                                            <div className="color-picker color-picker-inline">
+                                                {PREDEFINED_COLORS.map(color => (
+                                                    <button
+                                                        key={color}
+                                                        type="button"
+                                                        className={`color-btn color-btn-sm ${editColor === color ? 'selected' : ''}`}
+                                                        style={{ backgroundColor: color }}
+                                                        onClick={() => setEditColor(color)}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div className="activity-edit-actions">
+                                                <button className="action-btn save-btn" onClick={saveEdit} title="Enregistrer">
+                                                    <Check size={16} />
+                                                </button>
+                                                <button className="action-btn" onClick={() => setEditingId(null)} title="Annuler">
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="activity-info" onClick={() => startEdit(activity)} style={{ cursor: 'pointer' }}>
+                                                <div className="activity-color-swatch" style={{ backgroundColor: activity.color }}></div>
+                                                <span className="activity-name">{activity.name}</span>
+                                            </div>
+                                            <div className="activity-actions">
+                                                <button
+                                                    className="action-btn edit-btn"
+                                                    onClick={() => startEdit(activity)}
+                                                    title="Modifier l'activité"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button
+                                                    className="action-btn toggle-hide-btn"
+                                                    onClick={() => onToggleHideActivity(activity.id)}
+                                                    title={activity.isHidden ? "Afficher l'activité" : "Masquer l'activité"}
+                                                >
+                                                    {activity.isHidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                </button>
+                                                <button
+                                                    className="action-btn delete-btn"
+                                                    onClick={() => onDeleteActivity(activity.id)}
+                                                    title="Supprimer l'activité"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             ))
                         )}
