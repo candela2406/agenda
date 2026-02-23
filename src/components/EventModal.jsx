@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { X, Clock, MapPin, AlignLeft, Calendar as CalendarIcon, Edit2, Trash2 } from 'lucide-react';

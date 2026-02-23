@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plane, Edit2, PanelLeftClose, PanelLeftOpen, Plus, Settings, EyeOff, Eye } from 'lucide-react';
 import YearView from './components/YearView';
-import EventModal from './components/EventModal';
-import ActivityModal from './components/ActivityModal';
 import DaySidebar from './components/DaySidebar';
+import ActivityModal from './components/ActivityModal';
 import { getEvents, saveEvents, getLeaves, saveLeaves, getSettings, saveSettings, getActivities, saveActivities, getPlacedActivities, savePlacedActivities } from './utils/storage';
 import { fetchAllData, pushData } from './utils/api';
 import { getZoneADates } from './utils/holidaysZoneA';
@@ -21,8 +20,6 @@ function App() {
   const [placedActivities, setPlacedActivities] = useState({});
   const [activeActivityId, setActiveActivityId] = useState(null);
 
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [isEditingTotal, setIsEditingTotal] = useState(false);
   const [tempTotalLeaves, setTempTotalLeaves] = useState('');
@@ -110,14 +107,8 @@ function App() {
       setPlacedActivities(updatedPlaced);
       savePlacedActivities(updatedPlaced);
     } else {
-      const dayPlacements = placedActivities[dateString] || [];
-      if (dayPlacements.length > 0) {
-        setRightSidebarDate(dateString);
-        setRightSidebarOpen(true);
-      } else {
-        setSelectedDate(date);
-        setIsModalOpen(true);
-      }
+      setRightSidebarDate(dateString);
+      setRightSidebarOpen(true);
     }
   };
 
@@ -150,11 +141,6 @@ function App() {
     }
     setEvents(updatedEvents);
     saveEvents(updatedEvents);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setTimeout(() => setSelectedDate(null), 300);
   };
 
   const handleStartEditTotal = () => {
@@ -406,22 +392,15 @@ function App() {
           dateString={rightSidebarDate}
           placedActivities={placedActivities}
           activities={activities}
+          events={events}
           onClose={() => setRightSidebarOpen(false)}
           onRemoveActivity={handleRemovePlacedActivity}
           onUpdateActivity={handleUpdatePlacedActivity}
+          onAddEvent={handleAddEvent}
+          onUpdateEvent={handleUpdateEvent}
+          onDeleteEvent={handleDeleteEvent}
         />
       </div>
-
-      {isModalOpen && selectedDate && (
-        <EventModal
-          date={selectedDate}
-          dayEvents={events[selectedDate.toISOString().split('T')[0]] || []}
-          onClose={closeModal}
-          onAdd={handleAddEvent}
-          onUpdate={handleUpdateEvent}
-          onDelete={handleDeleteEvent}
-        />
-      )}
 
       {isActivityModalOpen && (
         <ActivityModal
