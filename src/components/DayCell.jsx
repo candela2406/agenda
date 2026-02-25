@@ -2,9 +2,10 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import './DayCell.css';
 
-const DayCell = ({ date, hasEvents, isLeave, activities = [], isHoliday, isToday, onClick, isInPickingRange, isPickingStart, isPickingEnd, onMouseDown, onMouseEnter }) => {
+const DayCell = ({ date, hasEvents, dayEvents = [], isLeave, activities = [], isHoliday, isToday, onClick, isInPickingRange, isPickingStart, isPickingEnd, onMouseDown, onMouseEnter }) => {
     const dayNumber = format(date, 'd');
     const hasActivities = activities.length > 0;
+    const hasTooltip = hasActivities || dayEvents.length > 0;
 
     const classNames = [
         'day-cell',
@@ -47,6 +48,22 @@ const DayCell = ({ date, hasEvents, isLeave, activities = [], isHoliday, isToday
                 </div>
             )}
             {hasEvents && <div className="event-dot" />}
+            {hasTooltip && (
+                <div className="day-tooltip">
+                    {activities.map(a => (
+                        <div key={a.id} className="day-tooltip-item">
+                            <span className="day-tooltip-dot" style={{ backgroundColor: a.color }} />
+                            <span>{a.title || a.name}</span>
+                        </div>
+                    ))}
+                    {dayEvents.map(ev => (
+                        <div key={ev.id} className="day-tooltip-item day-tooltip-event">
+                            <span className="day-tooltip-dot day-tooltip-dot-event" />
+                            <span>{ev.title}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
         </button>
     );
 };

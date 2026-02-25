@@ -61,11 +61,14 @@ const MonthView = ({ year, month, events, leaves, placedActivities, activities, 
                         .filter(Boolean);
                     const isHoliday = holidayDates.includes(dateString);
 
+                    const dayEvents = (events[dateString] || []);
+
                     return (
                         <DayCell
                             key={day.toString()}
                             date={day}
                             hasEvents={hasEvents}
+                            dayEvents={dayEvents}
                             isLeave={isLeave}
                             activities={dayActivities}
                             isHoliday={isHoliday}
