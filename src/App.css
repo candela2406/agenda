@@ -594,12 +594,13 @@
   }
 
   .sidebar {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
     z-index: 200;
     box-shadow: var(--shadow-lg);
+    padding-top: 52px;
   }
 
   .sidebar.closed {
