@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plane, Edit2, PanelLeftClose, PanelLeftOpen, Plus, Settings, EyeOff, Eye } from 'lucide-react';
 import YearView from './components/YearView';
 import DaySidebar from './components/DaySidebar';
@@ -12,14 +12,29 @@ import {
   updateSettings,
 } from './utils/api';
 import { getZoneADates } from './utils/holidaysZoneA';
+import { toDateString } from './utils/dateUtils';
 import './App.css';
 
 // Transform API flat arrays into the dict shapes components expect
 function groupEventsByDate(events) {
   const dict = {};
   for (const ev of events) {
-    if (!dict[ev.date]) dict[ev.date] = [];
-    dict[ev.date].push(ev);
+    if (ev.endDate && ev.endDate > ev.date) {
+      // Multi-day event: add to each day in the range
+      const start = new Date(ev.date + 'T00:00:00');
+      const end = new Date(ev.endDate + 'T00:00:00');
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = toDateString(d);
+        if (!dict[key]) dict[key] = [];
+        // Avoid duplicates if event already listed for this day
+        if (!dict[key].some(e => e.id === ev.id)) {
+          dict[key].push(ev);
+        }
+      }
+    } else {
+      if (!dict[ev.date]) dict[ev.date] = [];
+      dict[ev.date].push(ev);
+    }
   }
   return dict;
 }
@@ -27,8 +42,21 @@ function groupEventsByDate(events) {
 function groupPlacedByDate(placedActivities) {
   const dict = {};
   for (const p of placedActivities) {
-    if (!dict[p.date]) dict[p.date] = [];
-    dict[p.date].push({ id: p.activityId, rowId: p.id, title: p.title, time: p.time, location: p.location, description: p.description });
+    const item = { id: p.activityId, rowId: p.id, title: p.title, time: p.time, location: p.location, description: p.description, date: p.date, endDate: p.endDate };
+    if (p.endDate && p.endDate > p.date) {
+      const start = new Date(p.date + 'T00:00:00');
+      const end = new Date(p.endDate + 'T00:00:00');
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = toDateString(d);
+        if (!dict[key]) dict[key] = [];
+        if (!dict[key].some(i => i.rowId === p.id)) {
+          dict[key].push(item);
+        }
+      }
+    } else {
+      if (!dict[p.date]) dict[p.date] = [];
+      dict[p.date].push(item);
+    }
   }
   return dict;
 }
@@ -60,6 +88,19 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768);
   const [rightSidebarDate, setRightSidebarDate] = useState(null);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+
+  // Calendar drag state: always tracks mousedown→drag→mouseup on calendar
+  const [calendarDrag, setCalendarDrag] = useState(null); // null | { startDate, hoverDate }
+  const calendarDragRef = useRef(null);
+  const wasDraggingRef = useRef(false);
+  const dragContextRef = useRef({});
+
+  // For sidebar-triggered date picking (editing existing items)
+  const [sidebarPickingActive, setSidebarPickingActive] = useState(false);
+  const [pickedDateRange, setPickedDateRange] = useState(null); // null | { startDate, endDate }
+
+  // For opening sidebar with pre-filled event range from calendar drag
+  const [rightSidebarInitialRange, setRightSidebarInitialRange] = useState(null);
 
   const loadYear = useCallback(async (year) => {
     setLoading(true);
@@ -97,8 +138,99 @@ function App() {
   const handlePrevYear = () => setCurrentYear(prev => prev - 1);
   const handleNextYear = () => setCurrentYear(prev => prev + 1);
 
+  // Keep refs in sync for use in global event listeners
+  useEffect(() => {
+    calendarDragRef.current = calendarDrag;
+  }, [calendarDrag]);
+
+  dragContextRef.current = { sidebarPickingActive, activeActivityId, leaveMode };
+
+  const handleStartDatePicking = useCallback(() => {
+    setSidebarPickingActive(true);
+    setPickedDateRange(null);
+  }, []);
+
+  const handleCancelDatePicking = useCallback(() => {
+    setSidebarPickingActive(false);
+    setCalendarDrag(null);
+  }, []);
+
+  // Finalize a calendar drag — dispatches based on current mode
+  const finalizeDrag = useCallback(() => {
+    const drag = calendarDragRef.current;
+    if (!drag) return;
+    calendarDragRef.current = null; // prevent double execution
+    setCalendarDrag(null);
+
+    const s = drag.startDate;
+    const e = drag.hoverDate || s;
+    const [start, end] = s <= e ? [s, e] : [e, s];
+    const isDrag = start !== end;
+    const ctx = dragContextRef.current;
+
+    if (ctx.sidebarPickingActive) {
+      // Sidebar form date picking (always handle, even single click)
+      wasDraggingRef.current = true;
+      setPickedDateRange({ startDate: start, endDate: isDrag ? end : null });
+      setSidebarPickingActive(false);
+    } else if (isDrag) {
+      // Real drag (different days) — suppress the click event
+      wasDraggingRef.current = true;
+
+      if (ctx.activeActivityId) {
+        // Create multi-day activity placement
+        createPlacedActivity({ date: start, endDate: end, activityId: ctx.activeActivityId })
+          .then(result => {
+            setPlacedActivities(prev => {
+              const all = Object.values(prev).flat();
+              const unique = all.filter((item, i, arr) => arr.findIndex(x => x.rowId === item.rowId) === i);
+              const newItem = { id: result.activityId, rowId: result.id, title: result.title, time: result.time, location: result.location, description: result.description, date: result.date, endDate: result.endDate };
+              return groupPlacedByDate([...unique, newItem].map(i => ({ id: i.rowId, activityId: i.id, date: i.date, endDate: i.endDate, title: i.title, time: i.time, location: i.location, description: i.description })));
+            });
+          });
+      } else if (!ctx.leaveMode) {
+        // Normal mode: open sidebar with event form pre-filled
+        setRightSidebarDate(start);
+        setRightSidebarOpen(true);
+        setRightSidebarInitialRange({ startDate: start, endDate: end });
+      }
+    }
+    // else: single click, not in picking mode — let onClick handle it
+  }, []);
+
+  // Global mouseup to finalize drag even if released outside a day cell
+  useEffect(() => {
+    if (!calendarDrag) return;
+    const handler = () => finalizeDrag();
+    window.addEventListener('mouseup', handler);
+    return () => window.removeEventListener('mouseup', handler);
+  }, [!!calendarDrag, finalizeDrag]);
+
+  // Calendar mouse handlers — always active
+  const handleDayMouseDown = useCallback((dateString) => {
+    setCalendarDrag({ startDate: dateString, hoverDate: dateString });
+  }, []);
+
+  const handleDayMouseEnter = useCallback((dateString) => {
+    setCalendarDrag(prev => prev ? { ...prev, hoverDate: dateString } : null);
+  }, []);
+
+  // Compute the sorted range for visual highlighting during drag
+  const dragRange = useMemo(() => {
+    if (!calendarDrag?.startDate) return null;
+    const a = calendarDrag.startDate;
+    const b = calendarDrag.hoverDate || a;
+    return a <= b ? { start: a, end: b } : { start: b, end: a };
+  }, [calendarDrag]);
+
   const handleDayClick = async (date) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toDateString(date);
+
+    // Skip click if it was a drag or sidebar picking
+    if (wasDraggingRef.current) {
+      wasDraggingRef.current = false;
+      return;
+    }
 
     if (leaveMode) {
       const current = leaves[dateString];
@@ -119,22 +251,18 @@ function App() {
       if (existing) {
         await deletePlacedActivity(existing.rowId);
         setPlacedActivities(prev => {
-          const updated = { ...prev };
-          const filtered = (updated[dateString] || []).filter(item => item.id !== activeActivityId);
-          if (filtered.length === 0) {
-            delete updated[dateString];
-          } else {
-            updated[dateString] = filtered;
-          }
-          return updated;
+          // Rebuild from flat list excluding the deleted placement (handles multi-day)
+          const all = Object.values(prev).flat().filter(i => i.rowId !== existing.rowId);
+          const unique = all.filter((item, i, arr) => arr.findIndex(x => x.rowId === item.rowId) === i);
+          return groupPlacedByDate(unique.map(i => ({ id: i.rowId, activityId: i.id, date: i.date, endDate: i.endDate, title: i.title, time: i.time, location: i.location, description: i.description })));
         });
       } else {
         const result = await createPlacedActivity({ date: dateString, activityId: activeActivityId });
         setPlacedActivities(prev => {
-          const updated = { ...prev };
-          const items = updated[dateString] || [];
-          updated[dateString] = [...items, { id: result.activityId, rowId: result.id, title: result.title, time: result.time, location: result.location, description: result.description }];
-          return updated;
+          const all = Object.values(prev).flat();
+          const unique = all.filter((item, i, arr) => arr.findIndex(x => x.rowId === item.rowId) === i);
+          const newItem = { id: result.activityId, rowId: result.id, title: result.title, time: result.time, location: result.location, description: result.description, date: result.date, endDate: result.endDate };
+          return groupPlacedByDate([...unique, newItem].map(i => ({ id: i.rowId, activityId: i.id, date: i.date, endDate: i.endDate, title: i.title, time: i.time, location: i.location, description: i.description })));
         });
       }
     } else {
@@ -144,33 +272,29 @@ function App() {
   };
 
   const handleAddEvent = async (dateString, eventData) => {
-    const result = await createEvent({ date: dateString, ...eventData });
-    setEvents(prev => {
-      const updated = { ...prev };
-      if (!updated[dateString]) updated[dateString] = [];
-      updated[dateString] = [...updated[dateString], result];
-      return updated;
-    });
+    const { startDate, endDate, ...rest } = eventData;
+    const result = await createEvent({ date: startDate || dateString, endDate: endDate || null, ...rest });
+    setEvents(prev => groupEventsByDate([
+      ...Object.values(prev).flat().filter(ev => ev.id !== result.id),
+      result,
+    ]));
   };
 
   const handleUpdateEvent = async (dateString, eventId, eventData) => {
     const result = await apiUpdateEvent(eventId, eventData);
-    setEvents(prev => {
-      const updated = { ...prev };
-      updated[dateString] = (updated[dateString] || []).map(ev =>
-        ev.id === eventId ? result : ev
-      );
-      return updated;
-    });
+    setEvents(prev => groupEventsByDate([
+      ...Object.values(prev).flat().filter(ev => ev.id !== eventId),
+      result,
+    ]));
   };
 
   const handleDeleteEvent = async (dateString, eventId) => {
     await apiDeleteEvent(eventId);
     setEvents(prev => {
-      const updated = { ...prev };
-      updated[dateString] = (updated[dateString] || []).filter(ev => ev.id !== eventId);
-      if (updated[dateString].length === 0) delete updated[dateString];
-      return updated;
+      const allEvents = Object.values(prev).flat().filter(ev => ev.id !== eventId);
+      // Deduplicate (multi-day events appear in multiple date slots)
+      const unique = allEvents.filter((ev, i, arr) => arr.findIndex(e => e.id === ev.id) === i);
+      return groupEventsByDate(unique);
     });
   };
 
@@ -242,14 +366,9 @@ function App() {
       await deletePlacedActivity(item.rowId);
     }
     setPlacedActivities(prev => {
-      const updated = { ...prev };
-      const filtered = (updated[dateString] || []).filter(i => i.id !== activityId);
-      if (filtered.length === 0) {
-        delete updated[dateString];
-      } else {
-        updated[dateString] = filtered;
-      }
-      return updated;
+      const all = Object.values(prev).flat().filter(i => i.rowId !== item?.rowId);
+      const unique = all.filter((x, i, arr) => arr.findIndex(y => y.rowId === x.rowId) === i);
+      return groupPlacedByDate(unique.map(i => ({ id: i.rowId, activityId: i.id, date: i.date, endDate: i.endDate, title: i.title, time: i.time, location: i.location, description: i.description })));
     });
   };
 
@@ -260,11 +379,18 @@ function App() {
       await updatePlacedActivity(item.rowId, details);
     }
     setPlacedActivities(prev => {
-      const updated = { ...prev };
-      updated[dateString] = (updated[dateString] || []).map(i =>
-        i.id === activityId ? { ...i, ...details } : i
-      );
-      return updated;
+      const all = Object.values(prev).flat();
+      const unique = all.filter((x, i, arr) => arr.findIndex(y => y.rowId === x.rowId) === i);
+      const updated = unique.map(i => {
+        if (i.rowId !== item?.rowId) return i;
+        return {
+          ...i,
+          ...details,
+          date: details.startDate || i.date,
+          endDate: details.endDate !== undefined ? details.endDate : i.endDate,
+        };
+      });
+      return groupPlacedByDate(updated.map(i => ({ id: i.rowId, activityId: i.id, date: i.date, endDate: i.endDate, title: i.title, time: i.time, location: i.location, description: i.description })));
     });
   };
 
@@ -445,6 +571,12 @@ function App() {
         </aside>
 
         <main className="main-content">
+          {sidebarPickingActive && !calendarDrag && (
+            <div className="date-picking-banner">
+              Glissez sur le calendrier pour sélectionner les dates
+              <button className="date-picking-cancel" onClick={handleCancelDatePicking}>Annuler</button>
+            </div>
+          )}
           <YearView
             year={currentYear}
             events={events}
@@ -453,6 +585,9 @@ function App() {
             activities={activities}
             holidayDates={holidayDates}
             onDayClick={handleDayClick}
+            datePickingRange={dragRange}
+            onDayMouseDown={handleDayMouseDown}
+            onDayMouseEnter={handleDayMouseEnter}
           />
         </main>
 
@@ -463,12 +598,17 @@ function App() {
           placedActivities={placedActivities}
           activities={activities}
           events={events}
-          onClose={() => setRightSidebarOpen(false)}
+          onClose={() => { setRightSidebarOpen(false); setRightSidebarInitialRange(null); }}
           onRemoveActivity={handleRemovePlacedActivity}
           onUpdateActivity={handleUpdatePlacedActivity}
           onAddEvent={handleAddEvent}
           onUpdateEvent={handleUpdateEvent}
           onDeleteEvent={handleDeleteEvent}
+          sidebarPickingActive={sidebarPickingActive}
+          pickedDateRange={pickedDateRange}
+          onStartDatePicking={handleStartDatePicking}
+          onCancelDatePicking={handleCancelDatePicking}
+          initialEventRange={rightSidebarInitialRange}
         />
       </div>
 

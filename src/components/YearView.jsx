@@ -2,7 +2,7 @@ import React from 'react';
 import MonthView from './MonthView';
 import './YearView.css';
 
-const YearView = ({ year, events, leaves, placedActivities, activities, holidayDates, onDayClick }) => {
+const YearView = ({ year, events, leaves, placedActivities, activities, holidayDates, onDayClick, datePickingRange, onDayMouseDown, onDayMouseEnter }) => {
     const months = Array.from({ length: 12 }, (_, i) => i);
 
     return (
@@ -18,6 +18,9 @@ const YearView = ({ year, events, leaves, placedActivities, activities, holidayD
                     activities={activities}
                     holidayDates={holidayDates}
                     onDayClick={onDayClick}
+                    datePickingRange={datePickingRange}
+                    onDayMouseDown={onDayMouseDown}
+                    onDayMouseEnter={onDayMouseEnter}
                 />
             ))}
         </div>

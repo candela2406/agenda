@@ -256,6 +256,47 @@
     background: var(--bg-surface-hover);
 }
 
+/* Date range row */
+.day-sidebar-date-range-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.day-sidebar-date-range-row .day-sidebar-edit-row {
+    flex: 1;
+    min-width: 0;
+}
+
+.day-sidebar-date-arrow {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+/* Pick dates button */
+.day-sidebar-pick-dates {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-base);
+    background: rgba(251, 146, 60, 0.08);
+    border: 1px dashed rgba(251, 146, 60, 0.3);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.day-sidebar-pick-dates:hover {
+    background: rgba(251, 146, 60, 0.15);
+    border-color: var(--primary-base);
+}
+
 /* Events */
 .day-sidebar-events {
     display: flex;

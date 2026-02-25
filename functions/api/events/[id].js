@@ -4,13 +4,13 @@ export async function onRequestPut(context) {
   const body = await request.json();
 
   const result = await env.DB.prepare(
-    'UPDATE events SET title=?, time=?, location=?, description=?, updated_at=datetime(\'now\') WHERE id=? RETURNING id, date, title, time, location, description'
-  ).bind(body.title, body.time || null, body.location || null, body.description || null, id).first();
+    'UPDATE events SET date=COALESCE(?, date), title=?, time=?, location=?, description=?, end_date=?, updated_at=datetime(\'now\') WHERE id=? RETURNING id, date, end_date, title, time, location, description'
+  ).bind(body.startDate || null, body.title, body.time || null, body.location || null, body.description || null, body.endDate || null, id).first();
 
   if (!result) {
     return Response.json({ error: 'Not found' }, { status: 404 });
   }
-  return Response.json(result);
+  return Response.json({ id: result.id, date: result.date, endDate: result.end_date, title: result.title, time: result.time, location: result.location, description: result.description });
 }
 
 export async function onRequestDelete(context) {

@@ -2,7 +2,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import './DayCell.css';
 
-const DayCell = ({ date, hasEvents, isLeave, activities = [], isHoliday, isToday, onClick }) => {
+const DayCell = ({ date, hasEvents, isLeave, activities = [], isHoliday, isToday, onClick, isInPickingRange, isPickingStart, isPickingEnd, onMouseDown, onMouseEnter }) => {
     const dayNumber = format(date, 'd');
     const hasActivities = activities.length > 0;
 
@@ -12,17 +12,27 @@ const DayCell = ({ date, hasEvents, isLeave, activities = [], isHoliday, isToday
         isHoliday ? 'is-holiday' : '',
         hasEvents ? 'has-events' : '',
         hasActivities ? 'has-activities' : '',
-        isLeave ? `is-leave type-${isLeave === true ? 'full' : isLeave}` : ''
+        isLeave ? `is-leave type-${isLeave === true ? 'full' : isLeave}` : '',
+        isInPickingRange ? 'is-in-picking-range' : '',
+        isPickingStart ? 'is-picking-start' : '',
+        isPickingEnd ? 'is-picking-end' : ''
     ].filter(Boolean).join(' ');
 
-    const firstColor = hasActivities ? activities[0].color : null;
+    const firstColor = hasActivities && !isInPickingRange ? activities[0].color : null;
+
+    const handleMouseDown = (e) => {
+        e.preventDefault(); // prevent text selection during drag
+        onMouseDown?.();
+    };
 
     return (
         <button
             className={classNames}
             onClick={onClick}
+            onMouseDown={handleMouseDown}
+            onMouseEnter={onMouseEnter}
             aria-label={`Voir les événements pour le ${format(date, 'd MMMM yyyy', { locale: fr })}`}
-            style={hasActivities ? { backgroundColor: `${firstColor}15` } : {}}
+            style={hasActivities && !isInPickingRange ? { backgroundColor: `${firstColor}15` } : {}}
         >
             <span className="day-number" style={firstColor ? { color: firstColor, fontWeight: 'bold' } : {}}>{dayNumber}</span>
             {hasActivities && (

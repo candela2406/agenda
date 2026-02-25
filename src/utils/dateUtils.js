@@ -1,0 +1,11 @@
+/**
+ * Converts a Date to a YYYY-MM-DD string using local time.
+ * Unlike toISOString().split('T')[0], this avoids UTC conversion
+ * which shifts dates in timezones ahead of UTC.
+ */
+export function toDateString(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}

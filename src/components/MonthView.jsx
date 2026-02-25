@@ -8,9 +8,10 @@ import {
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import DayCell from './DayCell';
+import { toDateString } from '../utils/dateUtils';
 import './MonthView.css';
 
-const MonthView = ({ year, month, events, leaves, placedActivities, activities, holidayDates = [], onDayClick }) => {
+const MonthView = ({ year, month, events, leaves, placedActivities, activities, holidayDates = [], onDayClick, datePickingRange, onDayMouseDown, onDayMouseEnter }) => {
     const date = new Date(year, month, 1);
     const monthName = format(date, 'MMMM', { locale: fr });
     const daysInMonth = getDaysInMonth(date);
@@ -48,7 +49,7 @@ const MonthView = ({ year, month, events, leaves, placedActivities, activities, 
                 ))}
 
                 {days.map(day => {
-                    const dateString = day.toISOString().split('T')[0];
+                    const dateString = toDateString(day);
                     const hasEvents = events[dateString] && events[dateString].length > 0;
                     const isLeave = leaves && leaves[dateString];
                     const placements = (placedActivities && placedActivities[dateString]) || [];
@@ -70,6 +71,11 @@ const MonthView = ({ year, month, events, leaves, placedActivities, activities, 
                             isHoliday={isHoliday}
                             isToday={isSameDay(day, new Date())}
                             onClick={() => onDayClick(day)}
+                            isInPickingRange={datePickingRange && dateString >= datePickingRange.start && dateString <= datePickingRange.end}
+                            isPickingStart={datePickingRange && dateString === datePickingRange.start}
+                            isPickingEnd={datePickingRange && dateString === datePickingRange.end}
+                            onMouseDown={() => onDayMouseDown(dateString)}
+                            onMouseEnter={() => onDayMouseEnter(dateString)}
                         />
                     );
                 })}

@@ -7,9 +7,9 @@ export async function onRequestGet(context) {
 
   const [eventsResult, activitiesResult, placedResult, leavesResult, settingsResult] =
     await env.DB.batch([
-      env.DB.prepare('SELECT id, date, title, time, location, description FROM events WHERE date BETWEEN ? AND ? ORDER BY date, time').bind(from, to),
+      env.DB.prepare('SELECT id, date, end_date, title, time, location, description FROM events WHERE date BETWEEN ? AND ? OR (end_date IS NOT NULL AND date <= ? AND end_date >= ?) ORDER BY date, time').bind(from, to, to, from),
       env.DB.prepare('SELECT id, name, color, is_hidden, sort_order FROM activities ORDER BY sort_order, created_at'),
-      env.DB.prepare('SELECT id, date, activity_id, title, time, location, description FROM placed_activities WHERE date BETWEEN ? AND ? ORDER BY date').bind(from, to),
+      env.DB.prepare('SELECT id, date, end_date, activity_id, title, time, location, description FROM placed_activities WHERE date BETWEEN ? AND ? OR (end_date IS NOT NULL AND date <= ? AND end_date >= ?) ORDER BY date').bind(from, to, to, from),
       env.DB.prepare('SELECT date, type FROM leaves WHERE date BETWEEN ? AND ? ORDER BY date').bind(from, to),
       env.DB.prepare('SELECT key, value FROM settings'),
     ]);
@@ -20,7 +20,15 @@ export async function onRequestGet(context) {
   }
 
   return Response.json({
-    events: eventsResult.results,
+    events: eventsResult.results.map(e => ({
+      id: e.id,
+      date: e.date,
+      endDate: e.end_date,
+      title: e.title,
+      time: e.time,
+      location: e.location,
+      description: e.description,
+    })),
     activities: activitiesResult.results.map(a => ({
       id: a.id,
       name: a.name,
@@ -31,6 +39,7 @@ export async function onRequestGet(context) {
     placedActivities: placedResult.results.map(p => ({
       id: p.id,
       date: p.date,
+      endDate: p.end_date,
       activityId: p.activity_id,
       title: p.title,
       time: p.time,

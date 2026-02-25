@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { X, Clock, MapPin, AlignLeft, Calendar as CalendarIcon, Edit2, Trash2 } from 'lucide-react';
+import { toDateString } from '../utils/dateUtils';
 import './EventModal.css';
 
 const EventModal = ({ date, dayEvents, onClose, onAdd, onUpdate, onDelete }) => {
@@ -14,7 +15,7 @@ const EventModal = ({ date, dayEvents, onClose, onAdd, onUpdate, onDelete }) => 
         description: ''
     });
 
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toDateString(date);
 
     useEffect(() => {
         // Add escape key listener to close modal

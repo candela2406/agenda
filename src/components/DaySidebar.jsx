@@ -1,22 +1,53 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { X, Clock, MapPin, AlignLeft, Type, ChevronRight, Edit2, Trash2, Plus } from 'lucide-react';
+import { X, Clock, MapPin, AlignLeft, Type, ChevronRight, Edit2, Trash2, Plus, Calendar, MousePointer } from 'lucide-react';
 import './DaySidebar.css';
 
 const DaySidebar = ({
     isOpen, dateString, placedActivities, activities, events,
     onClose, onRemoveActivity, onUpdateActivity,
-    onAddEvent, onUpdateEvent, onDeleteEvent
+    onAddEvent, onUpdateEvent, onDeleteEvent,
+    sidebarPickingActive, pickedDateRange, onStartDatePicking, onCancelDatePicking,
+    initialEventRange
 }) => {
     // Activity inline edit state
     const [editingActivityId, setEditingActivityId] = useState(null);
-    const [activityEditData, setActivityEditData] = useState({ title: '', time: '', location: '', description: '' });
+    const [activityEditData, setActivityEditData] = useState({ title: '', time: '', location: '', description: '', startDate: '', endDate: '' });
 
     // Event form state
     const [isAddingEvent, setIsAddingEvent] = useState(false);
     const [editingEventId, setEditingEventId] = useState(null);
-    const [eventFormData, setEventFormData] = useState({ title: '', time: '', location: '', description: '' });
+    const [eventFormData, setEventFormData] = useState({ title: '', time: '', location: '', description: '', startDate: '', endDate: '' });
+
+    // Track which form is expecting picked dates
+    const pickingTargetRef = useRef(null); // 'event' | 'activity'
+
+    // React to picked date range from calendar
+    useEffect(() => {
+        if (pickedDateRange && pickingTargetRef.current) {
+            const { startDate, endDate } = pickedDateRange;
+            if (pickingTargetRef.current === 'event') {
+                setEventFormData(prev => ({ ...prev, startDate: startDate, endDate: endDate || '' }));
+            } else if (pickingTargetRef.current === 'activity') {
+                setActivityEditData(prev => ({ ...prev, startDate: startDate, endDate: endDate || '' }));
+            }
+            pickingTargetRef.current = null;
+        }
+    }, [pickedDateRange]);
+
+    // Auto-open event form when sidebar opens with a dragged date range
+    useEffect(() => {
+        if (initialEventRange) {
+            setEventFormData({
+                title: '', time: '12:00', location: '', description: '',
+                startDate: initialEventRange.startDate,
+                endDate: initialEventRange.endDate || ''
+            });
+            setIsAddingEvent(true);
+            setEditingEventId(null);
+        }
+    }, [initialEventRange]);
 
     if (!dateString) return null;
 
@@ -24,7 +55,7 @@ const DaySidebar = ({
     const dayActivities = placements
         .map(placement => {
             const def = activities.find(a => a.id === placement.id && !a.isHidden);
-            return def ? { ...def, title: placement.title, time: placement.time, location: placement.location, description: placement.description } : null;
+            return def ? { ...def, title: placement.title, time: placement.time, location: placement.location, description: placement.description, startDate: placement.date, endDate: placement.endDate } : null;
         })
         .filter(Boolean);
 
@@ -36,7 +67,7 @@ const DaySidebar = ({
     // Activity edit handlers
     const startActivityEdit = (a) => {
         setEditingActivityId(a.id);
-        setActivityEditData({ title: a.title || '', time: a.time || '', location: a.location || '', description: a.description || '' });
+        setActivityEditData({ title: a.title || '', time: a.time || '', location: a.location || '', description: a.description || '', startDate: a.startDate || dateString, endDate: a.endDate || '' });
     };
 
     const saveActivityEdit = (activityId) => {
@@ -49,11 +80,11 @@ const DaySidebar = ({
         if (e.key === 'Escape') setEditingActivityId(null);
     };
 
-    const hasActivityDetails = (a) => a.title || a.time || a.location || a.description;
+    const hasActivityDetails = (a) => a.title || a.time || a.location || a.description || (a.endDate && a.endDate > a.startDate);
 
     // Event form handlers
     const handleStartAddEvent = () => {
-        setEventFormData({ title: '', time: '12:00', location: '', description: '' });
+        setEventFormData({ title: '', time: '12:00', location: '', description: '', startDate: dateString, endDate: '' });
         setIsAddingEvent(true);
         setEditingEventId(null);
     };
@@ -63,15 +94,28 @@ const DaySidebar = ({
             title: event.title,
             time: event.time || '',
             location: event.location || '',
-            description: event.description || ''
+            description: event.description || '',
+            startDate: event.date || dateString,
+            endDate: event.endDate || ''
         });
         setEditingEventId(event.id);
         setIsAddingEvent(true);
     };
 
+    const handlePickDatesForEvent = () => {
+        pickingTargetRef.current = 'event';
+        onStartDatePicking();
+    };
+
+    const handlePickDatesForActivity = () => {
+        pickingTargetRef.current = 'activity';
+        onStartDatePicking();
+    };
+
     const handleCancelEventForm = () => {
         setIsAddingEvent(false);
         setEditingEventId(null);
+        if (sidebarPickingActive) onCancelDatePicking();
     };
 
     const handleSubmitEvent = (e) => {
@@ -131,6 +175,33 @@ const DaySidebar = ({
                                                     autoFocus
                                                 />
                                             </div>
+                                            <div className="day-sidebar-date-range-row">
+                                                <div className="day-sidebar-edit-row">
+                                                    <Calendar size={14} />
+                                                    <input
+                                                        type="date"
+                                                        value={activityEditData.startDate}
+                                                        onChange={(e) => setActivityEditData({ ...activityEditData, startDate: e.target.value })}
+                                                        onKeyDown={(e) => handleActivityKeyDown(e, a.id)}
+                                                        className="day-sidebar-input"
+                                                    />
+                                                </div>
+                                                <span className="day-sidebar-date-arrow">→</span>
+                                                <div className="day-sidebar-edit-row">
+                                                    <input
+                                                        type="date"
+                                                        value={activityEditData.endDate}
+                                                        onChange={(e) => setActivityEditData({ ...activityEditData, endDate: e.target.value })}
+                                                        onKeyDown={(e) => handleActivityKeyDown(e, a.id)}
+                                                        className="day-sidebar-input"
+                                                        min={activityEditData.startDate}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <button type="button" className="day-sidebar-pick-dates" onClick={handlePickDatesForActivity}>
+                                                <MousePointer size={14} />
+                                                Sélectionner sur le calendrier
+                                            </button>
                                             <div className="day-sidebar-edit-row">
                                                 <Clock size={14} />
                                                 <input
@@ -165,7 +236,7 @@ const DaySidebar = ({
                                             </div>
                                             <div className="day-sidebar-edit-actions">
                                                 <button className="day-sidebar-save" onClick={() => saveActivityEdit(a.id)}>Enregistrer</button>
-                                                <button className="day-sidebar-cancel" onClick={() => setEditingActivityId(null)}>Annuler</button>
+                                                <button className="day-sidebar-cancel" onClick={() => { setEditingActivityId(null); if (sidebarPickingActive) onCancelDatePicking(); }}>Annuler</button>
                                             </div>
                                         </div>
                                     ) : (
@@ -176,6 +247,12 @@ const DaySidebar = ({
                                         >
                                             {hasActivityDetails(a) ? (
                                                 <>
+                                                    {a.endDate && a.endDate > a.startDate && (
+                                                        <span className="day-sidebar-detail">
+                                                            <Calendar size={12} />
+                                                            {format(new Date(a.startDate + 'T00:00:00'), 'd MMM', { locale: fr })} → {format(new Date(a.endDate + 'T00:00:00'), 'd MMM yyyy', { locale: fr })}
+                                                        </span>
+                                                    )}
                                                     {a.title && <span className="day-sidebar-detail day-sidebar-detail-title">{a.title}</span>}
                                                     {a.time && <span className="day-sidebar-detail"><Clock size={12} /> {a.time}</span>}
                                                     {a.location && <span className="day-sidebar-detail"><MapPin size={12} /> {a.location}</span>}
@@ -230,6 +307,12 @@ const DaySidebar = ({
                                             </div>
                                         </div>
                                         <div className="day-sidebar-event-details">
+                                            {event.endDate && event.endDate > event.date && (
+                                                <span className="day-sidebar-detail">
+                                                    <Calendar size={12} />
+                                                    {format(new Date(event.date + 'T00:00:00'), 'd MMM', { locale: fr })} → {format(new Date(event.endDate + 'T00:00:00'), 'd MMM yyyy', { locale: fr })}
+                                                </span>
+                                            )}
                                             {event.time && <span className="day-sidebar-detail"><Clock size={12} /> {event.time}</span>}
                                             {event.location && <span className="day-sidebar-detail"><MapPin size={12} /> {event.location}</span>}
                                             {event.description && <span className="day-sidebar-detail day-sidebar-detail-desc">{event.description}</span>}
@@ -252,6 +335,31 @@ const DaySidebar = ({
                                     autoFocus
                                 />
                             </div>
+                            <div className="day-sidebar-date-range-row">
+                                <div className="day-sidebar-edit-row">
+                                    <Calendar size={14} />
+                                    <input
+                                        type="date"
+                                        value={eventFormData.startDate}
+                                        onChange={(e) => setEventFormData({ ...eventFormData, startDate: e.target.value })}
+                                        className="day-sidebar-input"
+                                    />
+                                </div>
+                                <span className="day-sidebar-date-arrow">→</span>
+                                <div className="day-sidebar-edit-row">
+                                    <input
+                                        type="date"
+                                        value={eventFormData.endDate}
+                                        onChange={(e) => setEventFormData({ ...eventFormData, endDate: e.target.value })}
+                                        className="day-sidebar-input"
+                                        min={eventFormData.startDate || dateString}
+                                    />
+                                </div>
+                            </div>
+                            <button type="button" className="day-sidebar-pick-dates" onClick={handlePickDatesForEvent}>
+                                <MousePointer size={14} />
+                                Sélectionner sur le calendrier
+                            </button>
                             <div className="day-sidebar-edit-row">
                                 <Clock size={14} />
                                 <input

@@ -35,13 +35,15 @@ export const zoneAHolidays = [
  */
 export const getZoneADates = () => {
     const dates = [];
+    const pad = (n) => String(n).padStart(2, '0');
+    const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
     zoneAHolidays.forEach(period => {
-        let currentDate = new Date(period.start);
-        const endDate = new Date(period.end);
+        let currentDate = new Date(period.start + 'T00:00:00');
+        const endDate = new Date(period.end + 'T00:00:00');
 
         while (currentDate < endDate) {
-            dates.push(currentDate.toISOString().split('T')[0]);
+            dates.push(fmt(currentDate));
             currentDate.setDate(currentDate.getDate() + 1);
         }
     });

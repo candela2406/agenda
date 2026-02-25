@@ -150,6 +150,33 @@
     background: linear-gradient(135deg, transparent 50%, rgba(16, 185, 129, 0.25) 50%);
 }
 
+/* Date picking / drag range */
+.day-cell.is-in-picking-range {
+    background: rgba(251, 146, 60, 0.15) !important;
+}
+
+.day-cell.is-in-picking-range .day-number {
+    color: var(--primary-base) !important;
+    font-weight: 700 !important;
+}
+
+.day-cell.is-picking-start,
+.day-cell.is-picking-end {
+    background: var(--primary-base) !important;
+    z-index: 10;
+}
+
+.day-cell.is-picking-start .day-number,
+.day-cell.is-picking-end .day-number {
+    color: #fff !important;
+}
+
+.day-cell.is-picking-start .event-dot,
+.day-cell.is-picking-end .event-dot {
+    background-color: #fff;
+    box-shadow: 0 0 4px #fff;
+}
+
 @media (max-width: 639px) {
     .day-cell {
         font-size: 0.75rem;
